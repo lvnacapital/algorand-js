@@ -1,7 +1,8 @@
+/* eslint-disable no-console, no-plusplus, brace-style */
 require('dotenv').config();
-const algosdk = require('algosdk');
 const program = require('commander');
 const readlineSync = require('readline-sync');
+const algosdk = require('algosdk');
 
 program
     .version('0.0.1', '-v, --version')
@@ -39,7 +40,7 @@ let walletHandle = null;
 let txId = '';
 let addr = '';
 // let txId = 'EXQVLGRRARXG5KG5EBZVVJD3GK2GI5S4PET33OKN36S42KD65ZRQ'; // 256761 - Einstein
-// let txId = "A6R7R6EL2I4QJRHBSRLE2B4AQ3N74MKRWQZARYCXQOR742HC3NGQ"; // 343498 - Dawkins
+// let txId = 'A6R7R6EL2I4QJRHBSRLE2B4AQ3N74MKRWQZARYCXQOR742HC3NGQ'; // 343498 - Dawkins
 // let addr = '2VXBXLOZSLA5EXPYD3P2SS5ODNUDTMOWTIQPLEU2SZB2Z563IWIXMQKJKI';
 
 (async () => {
@@ -51,23 +52,19 @@ let addr = '';
     console.log(`Next consensus protocol: ${algodStatus.nextConsensusVersion}`);
     console.log(`Round for next consensus protocol: ${algodStatus.nextConsensusVersionRound}`);
     console.log(`Next consensus protocol supported: ${algodStatus.nextConsensusVersionSupported}`);
+
+    // Retrieve the Latest Block's Information
+    if (program.showBlock) {
+        const lastround = algodStatus.lastRound;
+        const block = await algodClient.block(lastround);
+        console.log('\n-----------------Block Information-------------------');
+        console.log(block);
+        process.exit(0);
+    }
 })().catch((e) => {
     console.log(e.error.text);
     process.exit(1);
 });
-
-// Retrieve the Latest Block's Information
-if (program.showBlock) {
-    const lastround = algodStatus.lastRound;
-    (async () => {
-        const block = await algodClient.block(lastround);
-        console.log('\n-----------------Block Information-------------------');
-        console.log(block);
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
 
 // Creating a New Wallet and Account Using `kmd'
 // The following example creates a wallet, and generates an account
@@ -75,7 +72,7 @@ if (program.showBlock) {
 // Created wallet. 895bad84b32bbffa28c2c069d6b49e9f
 // Got wallet handle. 7c851f23a5ccf3b9.720b234ca57648b7bde1c1b1557c2be476da621f49bde47e8ddd01e254d7917a
 // Created new account. MYPI256EXJQIMTV3NHX2BNVAPL7WRXCOOJ67X4WE536RSUMKEZVSP4IBI4
-else if (program.createWallet) {
+if (program.createWallet) {
     let walletName = process.env.JS_WALLET;
     let walletPassword = process.env.JS_WALLET_PASSWORD;
 
@@ -96,7 +93,7 @@ else if (program.createWallet) {
         walletHandle = (await kmdClient.initWalletHandle(walletId, process.env.JS_WALLET_PASSWORD)).wallet_handle_token;
         console.log('Got wallet handle: ', walletHandle);
 
-        let address = (await kmdClient.generateKey(walletHandle)).address;
+        const { address } = await kmdClient.generateKey(walletHandle);
         console.log('Created new account: ', address);
     })().catch((e) => {
         console.log(e.error.text);
@@ -128,12 +125,12 @@ else if (program.backupWallet) {
 
         // Get a list of the wallets and find the one we are looking for
         walletId = null;
-        let wallets = (await kmdClient.listWallets()).wallets;
+        const { wallets } = await kmdClient.listWallets();
         console.log('List Wallet: ', wallets);
-        wallets.forEach(function(arrayItem) {
-            console.log(arrayItem.name);
-            if (arrayItem.name === walletName) {
-                walletId = arrayItem.id;
+        wallets.forEach((wallet) => {
+            console.log(wallet.name);
+            if (wallet.name === walletName) {
+                walletId = wallet.id;
             }
         });
 
@@ -142,7 +139,7 @@ else if (program.backupWallet) {
         console.log('Got wallet handle: ', walletHandle);
 
         // Export the master derivation key
-        let mdk = (await kmdClient.exportMasterDerivationKey(walletHandle, walletPassword)).master_derivation_key;
+        const mdk = (await kmdClient.exportMasterDerivationKey(walletHandle, walletPassword)).master_derivation_key;
         console.log('mdk: ', mdk);
 
         // Get backup phrase to store offline in a safe place
@@ -163,7 +160,7 @@ else if (program.recoverWallet) {
         if (!mn) {
             mn = readlineSync.question('Specify the wallet mnemonic: ');
         }
-        let mdk = await algosdk.mnemonicToMasterDerivationKey(mn);
+        const mdk = await algosdk.mnemonicToMasterDerivationKey(mn);
         console.log(mdk);
 
         let walletName = process.env.RECOVERED_WALLET;
@@ -184,7 +181,7 @@ else if (program.recoverWallet) {
         console.log('Got wallet handle: ', walletHandle);
 
         // Generate 1 address but could generate multiple accounts.
-        let address = (await kmdClient.generateKey(walletHandle)).address;
+        const { address } = await kmdClient.generateKey(walletHandle);
         console.log('Created new account: ', address);
     })().catch((e) => {
         console.log(e.error.text);
@@ -204,7 +201,7 @@ else if (program.recoverWallet) {
 else if (program.sendTransaction) {
     let note = '';
     let amount = 0;
-    let from = { addr: '', sk: '' };
+    const from = { addr: '', sk: '' };
     let to = ''; // 'KI6TMKHUQOGJ7EDZLOWFOGHBBWBIMBMKONMS565X7NSOFMAM6S2EK4GBHQ';
     let walletName = '';
     let walletPassword = '';
@@ -230,7 +227,7 @@ else if (program.sendTransaction) {
                 from.sk = recoveredAccount.sk;
             }
         } else {
-            wallets = await kmdClient.listWallets();
+            const wallets = await kmdClient.listWallets();
             const walletsLength = wallets.wallets.length;
             if (typeof walletsLength !== 'undefined' && walletsLength > 0) {
                 console.log('\nGot wallets list:'); // + JSON.stringify(wallets));
@@ -241,6 +238,7 @@ else if (program.sendTransaction) {
                 if (!walletName) {
                     const walletIndex = readlineSync.keyIn(
                         `Pick the wallet to use [1${walletsLength > 1 ? `-${walletsLength}` : ''}]: `,
+                        // eslint-disable-next-line comma-dangle
                         { limit: `$<1-${walletsLength}>` }
                     );
                     walletName = wallets.wallets[walletIndex - 1].name;
@@ -270,13 +268,13 @@ else if (program.sendTransaction) {
 
                 const keyIndex = readlineSync.keyIn(
                     `Pick the account address to send from [1${keysLength > 1 ? `-${keysLength}` : ''}]: `,
-                    { limit: `$<1-${keysLength}>` }
+                    { limit: `$<1-${keysLength}>` },
                 );
                 from.addr = keys.addresses[keyIndex - 1];
                 from.sk = (await kmdClient.exportKey(walletHandle, walletPassword, from.addr)).private_key;
                 // console.log('sk', from.sk);
             } else {
-                console.log(`No keys could be found in \`kmd\' for '${walletName}'.`);
+                console.log(`No keys could be found in \`kmd' for '${walletName}'.`);
                 process.exit(1);
             }
         }
@@ -294,15 +292,15 @@ else if (program.sendTransaction) {
         }
 
         // Get the relevant params from the algod
-        let params = await algodClient.getTransactionParams();
-        let endRound = params.lastRound + parseInt(1000);
+        const params = await algodClient.getTransactionParams();
+        const endRound = params.lastRound + parseInt(1000, 10);
 
         // Create a transaction
-        let txn = {
+        const txn = {
             from: from.addr,
-            to: to, // 'NJY27OQ2ZXK6OWBN44LE4K43TA2AV3DPILPYTHAJAMKIVZDWTEJKZJKO4A',
+            to, // 'NJY27OQ2ZXK6OWBN44LE4K43TA2AV3DPILPYTHAJAMKIVZDWTEJKZJKO4A',
             fee: params.fee,
-            amount: amount,
+            amount,
             firstRound: params.lastRound,
             lastRound: endRound,
             genesisID: params.genesisID,
@@ -316,8 +314,8 @@ else if (program.sendTransaction) {
         // Submit the transaction
         console.log('\nSubmitting transaction...');
         const tx = await algodClient.sendRawTransaction(signedTxn.blob);
-        txId = tx.txId;
-        console.log('Transaction: TX-' + txId);
+        txId = tx.txId; // eslint-disable-line prefer-destructuring
+        console.log(`Transaction: TX-${txId}`);
     })().catch((e) => {
         console.log(e.error.text);
         process.exit(1);
@@ -338,7 +336,7 @@ else if (program.getTransaction) {
     if (!addr) {
         addr = readlineSync.question('\nEnter the sender address to look for: ');
     }
-    if (isValidAddress(addr)) {
+    if (algosdk.isValidAddress(addr)) {
         console.log(`Not a valid address: ${addr}`);
         process.exit(1);
     }
@@ -348,8 +346,8 @@ else if (program.getTransaction) {
     }
 
     (async () => {
-        const tx = await algodClient.transactionInformation(addr, txId); //recoveredAccount.addr, txId);
-        console.log('Transaction: ' + JSON.stringify(tx));
+        const tx = await algodClient.transactionInformation(addr, txId); // recoveredAccount.addr, txId);
+        console.log(`Transaction: ${JSON.stringify(tx)}`);
 
         // Reading the Note Field of a Transaction
         // Up to 1kb of arbitrary data can be stored in any
@@ -357,8 +355,8 @@ else if (program.getTransaction) {
         // transaction's note field. If this data was encoded using the
         // SDK's `encodeObj' function, then it can be decoded using the
         // `decodeObj' function.
-        let encodednote = JSON.stringify(algosdk.decodeObj(tx.note), undefined, 4);
-        console.log('Decoded: ' + encodednote);
+        const encodednote = JSON.stringify(algosdk.decodeObj(tx.note), undefined, 4);
+        console.log(`Decoded: ${encodednote}`);
 
         // Iterate across all transactions for a given address and
         // round range, e.g. get all transactions for an address for
@@ -382,26 +380,26 @@ else if (program.findTransaction) {
     (async () => {
         const params = await algodClient.getTransactionParams();
         const start = params.lastRound; // 329923;
-        const end = params.lastRound - 1000;
-        mainloop: for (let i = start; i > end; i--) {
-            let block = await algodClient.block(i);
+        const end = 0;
+        mainloop: for (let i = start; i > end; i--) { // eslint-disable-line no-labels, no-restricted-syntax
+            const block = await algodClient.block(i); // eslint-disable-line no-await-in-loop
             // console.log("Number of Transactions in " + i + ": " + block.txns.transactions.length);
             if (typeof block.txns.transactions === 'undefined') {
-                continue;
+                continue; // eslint-disable-line no-continue
             }
-            let txcn = block.txns.transactions.length;
+            const txcn = block.txns.transactions.length;
 
             for (let j = 0; j < txcn - 1; j++) {
                 // console.log("Transaction " + block.txns.transactions[j].tx);
                 if (block.txns.transactions[j].tx === txId) {
-                    let textedJson = JSON.stringify(block.txns.transactions[j], undefined, 4);
-                    console.log('Transaction: ' + textedJson);
+                    const textedJson = JSON.stringify(block.txns.transactions[j], undefined, 4);
+                    console.log(`Transaction: ${textedJson}`);
                     if (undefined !== block.txns.transactions[j].note && block.txns.transactions[j].note.length) {
                         // prettier-ignore
-                        let encodednote = JSON.stringify(algosdk.decodeObj(block.txns.transactions[j].note), undefined, 4);
-                        console.log('Decoded: ' + encodednote);
+                        const encodednote = JSON.stringify(algosdk.decodeObj(block.txns.transactions[j].note), undefined, 4);
+                        console.log(`Decoded: ${encodednote}`);
                     }
-                    break mainloop;
+                    break mainloop; // eslint-disable-line no-labels
                 }
             }
         }
@@ -409,7 +407,9 @@ else if (program.findTransaction) {
         console.log(e.error.text);
         process.exit(1);
     });
-} else {
+}
+
+else {
     program.outputHelp();
     console.log('');
 }
