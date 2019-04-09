@@ -50,7 +50,7 @@ let addr = '';
     console.log(`Last consensus protocol: ${algodStatus.lastConsensusVersion}`);
     console.log(`Next consensus protocol: ${algodStatus.nextConsensusVersion}`);
     console.log(`Round for next consensus protocol: ${algodStatus.nextConsensusVersionRound}`);
-    console.log(`Next consensus protocol supported: ${algodStatus.nextConsensusVersionSupported}\n`);
+    console.log(`Next consensus protocol supported: ${algodStatus.nextConsensusVersionSupported}`);
 })().catch((e) => {
     console.log(e.error.text);
     process.exit(1);
@@ -207,7 +207,7 @@ else if (program.sendTransaction) {
     let from = { addr: '', sk: '' };
     let to = ''; // 'KI6TMKHUQOGJ7EDZLOWFOGHBBWBIMBMKONMS565X7NSOFMAM6S2EK4GBHQ';
     let walletName = '';
-    let walletPassword = 'foobared';
+    let walletPassword = '';
 
     (async () => {
         if (program.generateAccount) {
