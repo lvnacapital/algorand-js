@@ -1,0 +1,24 @@
+{
+    "name": "algorand-js",
+    "description": "",
+    "keywords": [],
+    "homepage": "https://github.com/lvnacapital/algorand-js",
+    "bugs": "https://github.com/lvnacapital/algorand-js/issues",
+    "license": "MIT",
+    "version": "0.0.1",
+    "author": "Jimmy Cassis <jimmy@lvnacapital.com> (https://lvnacapital.com/)",
+    "main": "server.js",
+    "repository": "github:lvnacapital/algorand-js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "algosdk": "^1.0.5",
+        "dotenv": "^7.0.0"
+    },
+    "devDependencies": {},
+    "engines": {
+        "node": ">= 8.0.0"
+    },
+    "private": true
+}
