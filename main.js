@@ -1,11 +1,13 @@
-/* eslint-disable no-console, no-plusplus, brace-style */
+/* eslint-disable no-console */
 require('dotenv').config();
 const program = require('commander');
-const readlineSync = require('readline-sync');
 const algosdk = require('algosdk');
+const wallet = require('./wallet');
+const search = require('./search');
+const clerk = require('./clerk');
 
 program
-    .version('0.0.1', '-v, --version')
+    .version('0.0.2', '-v, --version')
     .usage('[options]')
     .option('-b, --show-block', 'Display block information')
     .option('-c, --create-wallet', 'Create new wallet')
@@ -34,17 +36,8 @@ const kmdPort = process.env.KMD_PORT || program.kmdPort || '7833';
 const algodClient = new algosdk.Algod(algodToken, server, algodPort);
 const kmdClient = new algosdk.Kmd(kmdToken, server, kmdPort);
 
-let algodStatus = null;
-let walletId = null;
-let walletHandle = null;
-let txId = '';
-let addr = '';
-// let txId = 'EXQVLGRRARXG5KG5EBZVVJD3GK2GI5S4PET33OKN36S42KD65ZRQ'; // 256761 - Einstein
-// let txId = 'A6R7R6EL2I4QJRHBSRLE2B4AQ3N74MKRWQZARYCXQOR742HC3NGQ'; // 343498 - Dawkins
-// let addr = '2VXBXLOZSLA5EXPYD3P2SS5ODNUDTMOWTIQPLEU2SZB2Z563IWIXMQKJKI';
-
 (async () => {
-    algodStatus = await algodClient.status();
+    const algodStatus = await algodClient.status();
     console.log("`algod' Status\n--------------");
     console.log(`Last committed block: ${algodStatus.lastRound}`);
     console.log(`Time since last block: ${(algodStatus.timeSinceLastRound / 1000000000).toFixed(1)}s`);
@@ -60,356 +53,23 @@ let addr = '';
         console.log('\n-----------------Block Information-------------------');
         console.log(block);
         process.exit(0);
+    } else if (program.createWallet) {
+        wallet.createWallet(kmdClient);
+    } else if (program.backupWallet) {
+        wallet.backupWallet(kmdClient);
+    } else if (program.recoverWallet) {
+        wallet.recoverWallet(kmdClient);
+    } else if (program.sendTransaction) {
+        clerk.sendTransaction(program.generateAccount, algodClient, kmdClient);
+    } else if (program.getTransaction) {
+        search.getTransaction(algodClient);
+    } else if (program.findTransaction) {
+        search.findTransaction(algodClient);
+    } else {
+        program.outputHelp();
+        console.log('');
     }
 })().catch((e) => {
     console.log(e.error.text);
     process.exit(1);
 });
-
-// Creating a New Wallet and Account Using `kmd'
-// The following example creates a wallet, and generates an account
-// within that wallet using the kmd.
-// Created wallet. 895bad84b32bbffa28c2c069d6b49e9f
-// Got wallet handle. 7c851f23a5ccf3b9.720b234ca57648b7bde1c1b1557c2be476da621f49bde47e8ddd01e254d7917a
-// Created new account. MYPI256EXJQIMTV3NHX2BNVAPL7WRXCOOJ67X4WE536RSUMKEZVSP4IBI4
-if (program.createWallet) {
-    let walletName = process.env.JS_WALLET;
-    let walletPassword = process.env.JS_WALLET_PASSWORD;
-
-    if (!walletName) {
-        walletName = readlineSync.question('Specify a wallet name [default: JSWallet]: ', { defaultInput: 'JSWallet' });
-    }
-    if (!walletPassword) {
-        walletPassword = readlineSync.question('Specify a wallet password: ', { hideEchoBack: true, mask: '' });
-    }
-    // console.log(walletName);
-    // console.log(walletPassword);
-
-    (async () => {
-        // prettier-ignore
-        walletId = (await kmdClient.createWallet(process.env.JS_WALLET, process.env.JS_WALLET_PASSWORD, '', 'sqlite')).wallet.id;
-        console.log('Created wallet: ', walletId);
-
-        walletHandle = (await kmdClient.initWalletHandle(walletId, process.env.JS_WALLET_PASSWORD)).wallet_handle_token;
-        console.log('Got wallet handle: ', walletHandle);
-
-        const { address } = await kmdClient.generateKey(walletHandle);
-        console.log('Created new account: ', address);
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-// Backing Up and Restoring a Wallet
-// You can export a master derivation key from the wallet and convert
-// it to a mnemonic phrase in order to back up any wallet generated
-// accounts. This backup phrase will only allow you to recover
-// wallet-generated keys; if you import an external key into a
-// kmd-managed wallet, you'll need to back up that key by itself in
-// order to recover it.
-else if (program.backupWallet) {
-    (async () => {
-        let walletName = process.env.JS_WALLET;
-        let walletPassword = process.env.JS_WALLET_PASSWORD;
-
-        if (!walletName) {
-            // prettier-ignore
-            walletName = readlineSync.question('Specify a wallet to backup [default: JSWallet]: ', { defaultInput: 'JSWallet' });
-        }
-        if (!walletPassword) {
-            walletPassword = readlineSync.question('Type the wallet password: ', { hideEchoBack: true, mask: '' });
-        }
-        // console.log(walletName);
-        // console.log(walletPassword);
-
-        // Get a list of the wallets and find the one we are looking for
-        walletId = null;
-        const { wallets } = await kmdClient.listWallets();
-        console.log('List Wallet: ', wallets);
-        wallets.forEach((wallet) => {
-            console.log(wallet.name);
-            if (wallet.name === walletName) {
-                walletId = wallet.id;
-            }
-        });
-
-        // Get a wallet handle
-        walletHandle = (await kmdClient.initWalletHandle(walletId, walletPassword)).wallet_handle_token;
-        console.log('Got wallet handle: ', walletHandle);
-
-        // Export the master derivation key
-        const mdk = (await kmdClient.exportMasterDerivationKey(walletHandle, walletPassword)).master_derivation_key;
-        console.log('mdk: ', mdk);
-
-        // Get backup phrase to store offline in a safe place
-        console.log(algosdk.masterDerivationKeyToMnemonic(mdk));
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-// Recover a Wallet
-// To restore a wallet, convert the phrase to a key and pass it to
-// CreateWallet. This call will fail if the wallet already exists.
-else if (program.recoverWallet) {
-    (async () => {
-        // Get the master get from the backup phrase
-        let mn = process.env.JS_WALLET_MNEMONIC;
-        if (!mn) {
-            mn = readlineSync.question('Specify the wallet mnemonic: ');
-        }
-        const mdk = await algosdk.mnemonicToMasterDerivationKey(mn);
-        console.log(mdk);
-
-        let walletName = process.env.RECOVERED_WALLET;
-        let walletPassword = process.env.RECOVERED_WALLET_PASSWORD;
-        if (!walletName) {
-            // prettier-ignore
-            walletName = readlineSync.question('Specify a recovered wallet name [default: RecoveredWallet]: ', { defaultInput: 'RecoveredWallet' });
-        }
-        if (!walletPassword) {
-            walletPassword = readlineSync.question('Specify a wallet password: ', { hideEchoBack: true, mask: '' });
-        }
-        // Create the wallet using the master derivation key
-        walletId = (await kmdClient.createWallet(walletName, walletPassword, mdk)).wallet.id;
-        console.log(walletId);
-
-        // Get a wallet handle
-        walletHandle = (await kmdClient.initWalletHandle(walletId, walletPassword)).wallet_handle_token;
-        console.log('Got wallet handle: ', walletHandle);
-
-        // Generate 1 address but could generate multiple accounts.
-        const { address } = await kmdClient.generateKey(walletHandle);
-        console.log('Created new account: ', address);
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-// Signing and Submitting a Transaction
-// You can use the stand-alone functions to create and sign a
-// transaction, but to submit it you will need access to an algod
-// process. You will need to use an algod client wrapper function
-// to submit it to the network. Up to 1kb of arbitrary data can be
-// stored in any transaction. This is done using the note field of the
-// transaction. The data must first be encoded and the SDK provides a
-// convenience function to do this. The following example creates a
-// transaction and encodes an object into the note field.
-else if (program.sendTransaction) {
-    let note = '';
-    let amount = 0;
-    const from = { addr: '', sk: '' };
-    let to = ''; // 'KI6TMKHUQOGJ7EDZLOWFOGHBBWBIMBMKONMS565X7NSOFMAM6S2EK4GBHQ';
-    let walletName = '';
-    let walletPassword = '';
-
-    (async () => {
-        if (program.generateAccount) {
-            // Create an account
-            const account = algosdk.generateAccount();
-            console.log(`Address: ${account.addr}`);
-
-            // Get backup phrase for account
-            const mnemonic = algosdk.secretKeyToMnemonic(account.sk);
-            console.log(`Mnemonic: ${mnemonic}`);
-
-            // Recover the account
-            const recoveredAccount = algosdk.mnemonicToSecretKey(mnemonic);
-            // console.log(recoveredAccount.addr);
-
-            // Check to see if account is valid
-            const isValid = algosdk.isValidAddress(recoveredAccount.addr);
-            if (isValid) {
-                from.addr = recoveredAccount.addr;
-                from.sk = recoveredAccount.sk;
-            }
-        } else {
-            const wallets = await kmdClient.listWallets();
-            const walletsLength = wallets.wallets.length;
-            if (typeof walletsLength !== 'undefined' && walletsLength > 0) {
-                console.log('\nGot wallets list:'); // + JSON.stringify(wallets));
-                for (let i = 0; i < walletsLength; i++) {
-                    console.log(`[${i + 1}] ${wallets.wallets[i].name}`);
-                }
-
-                if (!walletName) {
-                    const walletIndex = readlineSync.keyIn(
-                        `Pick the wallet to use [1${walletsLength > 1 ? `-${walletsLength}` : ''}]: `,
-                        // eslint-disable-next-line comma-dangle
-                        { limit: `$<1-${walletsLength}>` }
-                    );
-                    walletName = wallets.wallets[walletIndex - 1].name;
-                    walletId = wallets.wallets[walletIndex - 1].id;
-                }
-
-                if (!walletPassword) {
-                    walletPassword = readlineSync.question(`\nType the '${walletName}' wallet's password: `, {
-                        hideEchoBack: true,
-                        mask: '',
-                    });
-                }
-
-                walletHandle = (await kmdClient.initWalletHandle(walletId, walletPassword)).wallet_handle_token;
-            } else {
-                console.log("No wallets could be found in `kmd'.");
-                process.exit(1);
-            }
-
-            const keys = await kmdClient.listKeys(walletHandle);
-            const keysLength = keys.addresses.length;
-            if (typeof keysLength !== 'undefined' && keysLength > 0) {
-                console.log('\nGot keys list:'); // + keys);
-                for (let i = 0; i < keysLength; i++) {
-                    console.log(`[${i + 1}] ${keys.addresses[i]}`);
-                }
-
-                const keyIndex = readlineSync.keyIn(
-                    `Pick the account address to send from [1${keysLength > 1 ? `-${keysLength}` : ''}]: `,
-                    { limit: `$<1-${keysLength}>` },
-                );
-                from.addr = keys.addresses[keyIndex - 1];
-                from.sk = (await kmdClient.exportKey(walletHandle, walletPassword, from.addr)).private_key;
-                // console.log('sk', from.sk);
-            } else {
-                console.log(`No keys could be found in \`kmd' for '${walletName}'.`);
-                process.exit(1);
-            }
-        }
-
-        if (!to) {
-            to = readlineSync.question('\nSpecify the account address to send to: ');
-        }
-
-        if (!amount) {
-            amount = readlineSync.questionInt('\nSpecify the amount to be transferred: ');
-        }
-
-        if (!note) {
-            note = readlineSync.question('\nSpecify some note text (optional): ');
-        }
-
-        // Get the relevant params from the algod
-        const params = await algodClient.getTransactionParams();
-        const endRound = params.lastRound + parseInt(1000, 10);
-
-        // Create a transaction
-        const txn = {
-            from: from.addr,
-            to, // 'NJY27OQ2ZXK6OWBN44LE4K43TA2AV3DPILPYTHAJAMKIVZDWTEJKZJKO4A',
-            fee: params.fee,
-            amount,
-            firstRound: params.lastRound,
-            lastRound: endRound,
-            genesisID: params.genesisID,
-            note: note ? algosdk.encodeObj(note) : new Uint8Array(0),
-        };
-
-        // Sign the transaction
-        console.log('\nSigning transaction: \n', txn);
-        const signedTxn = algosdk.signTransaction(txn, from.sk);
-
-        // Submit the transaction
-        console.log('\nSubmitting transaction...');
-        const tx = await algodClient.sendRawTransaction(signedTxn.blob);
-        txId = tx.txId; // eslint-disable-line prefer-destructuring
-        console.log(`Transaction: TX-${txId}`);
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-// Locating a Transaction
-// Once a transaction is submitted and finalized into a block, it can be
-// found later using several methods:
-//  - If the node's 'Archival' property is not set to 'true,' only a
-//    limited number of local blocks on the node are allowed to be
-//    searched. If the 'Archival' property is set to 'true,' the entire
-//    blockchain will be available for searching.
-//  - Use the account's address with the transaction ID and call the
-//    `algod' client's transactionInformation function to find a
-//    specific transaction.
-else if (program.getTransaction) {
-    if (!addr) {
-        addr = readlineSync.question('\nEnter the sender address to look for: ');
-    }
-    if (algosdk.isValidAddress(addr)) {
-        console.log(`Not a valid address: ${addr}`);
-        process.exit(1);
-    }
-
-    if (!txId) {
-        txId = readlineSync.question('\nEnter the transaction ID to look for: TX-');
-    }
-
-    (async () => {
-        const tx = await algodClient.transactionInformation(addr, txId); // recoveredAccount.addr, txId);
-        console.log(`Transaction: ${JSON.stringify(tx)}`);
-
-        // Reading the Note Field of a Transaction
-        // Up to 1kb of arbitrary data can be stored in any
-        // transaction. This data can be stored and read from the
-        // transaction's note field. If this data was encoded using the
-        // SDK's `encodeObj' function, then it can be decoded using the
-        // `decodeObj' function.
-        const encodednote = JSON.stringify(algosdk.decodeObj(tx.note), undefined, 4);
-        console.log(`Decoded: ${encodednote}`);
-
-        // Iterate across all transactions for a given address and
-        // round range, e.g. get all transactions for an address for
-        // the last 1000 rounds.
-        // const params = await algodClient.getTransactionParams();
-        // const txts = await algodClient.transactionByAddress(recoveredAccount.addr, params.lastRound - 1000, params.lastRound);
-        // let lastTransaction = txts.transactions[txts.transactions.length - 1];
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-// You can also iterate over all the blocks in a given range and search
-// for a specific transaction.
-else if (program.findTransaction) {
-    if (!txId) {
-        txId = readlineSync.question('\nEnter the transaction ID to look for: TX-');
-    }
-
-    (async () => {
-        const params = await algodClient.getTransactionParams();
-        const start = params.lastRound; // 329923;
-        const end = 0;
-        mainloop: for (let i = start; i > end; i--) { // eslint-disable-line no-labels, no-restricted-syntax
-            const block = await algodClient.block(i); // eslint-disable-line no-await-in-loop
-            // console.log("Number of Transactions in " + i + ": " + block.txns.transactions.length);
-            if (typeof block.txns.transactions === 'undefined') {
-                continue; // eslint-disable-line no-continue
-            }
-            const txcn = block.txns.transactions.length;
-
-            for (let j = 0; j < txcn - 1; j++) {
-                // console.log("Transaction " + block.txns.transactions[j].tx);
-                if (block.txns.transactions[j].tx === txId) {
-                    const textedJson = JSON.stringify(block.txns.transactions[j], undefined, 4);
-                    console.log(`Transaction: ${textedJson}`);
-                    if (undefined !== block.txns.transactions[j].note && block.txns.transactions[j].note.length) {
-                        // prettier-ignore
-                        const encodednote = JSON.stringify(algosdk.decodeObj(block.txns.transactions[j].note), undefined, 4);
-                        console.log(`Decoded: ${encodednote}`);
-                    }
-                    break mainloop; // eslint-disable-line no-labels
-                }
-            }
-        }
-    })().catch((e) => {
-        console.log(e.error.text);
-        process.exit(1);
-    });
-}
-
-else {
-    program.outputHelp();
-    console.log('');
-}

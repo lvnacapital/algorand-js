@@ -12,6 +12,7 @@
         "indent": ["error", 4],
         "max-len": "off",
         "no-unused-vars": "warn",
+        "no-plusplus": ["error", { "allowForLoopAfterthoughts": true }],
         "object-curly-newline": ["error", {
             "ObjectExpression": { "consistent": true },
             "ObjectPattern": { "multiline": true },
