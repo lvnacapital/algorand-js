@@ -14,9 +14,13 @@
     },
     "dependencies": {
         "algosdk": "^1.0.5",
-        "dotenv": "^7.0.0"
+        "commander": "^2.20.0",
+        "dotenv": "^7.0.0",
+        "readline-sync": "^1.4.9"
     },
-    "devDependencies": {},
+    "devDependencies": {
+        "prettier": "^1.16.4"
+    },
     "engines": {
         "node": ">= 8.0.0"
     },
