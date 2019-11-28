@@ -5,7 +5,7 @@
     "homepage": "https://github.com/lvnacapital/algorand-js",
     "bugs": "https://github.com/lvnacapital/algorand-js/issues",
     "license": "MIT",
-    "version": "0.0.2",
+    "version": "0.0.4",
     "author": "Jimmy Cassis <jimmy@lvnacapital.com> (https://lvnacapital.com/)",
     "main": "main.js",
     "repository": "github:lvnacapital/algorand-js",
@@ -13,18 +13,18 @@
         "start": "node main.js"
     },
     "dependencies": {
-        "algosdk": "^1.0.5",
-        "commander": "^2.20.0",
-        "dotenv": "^7.0.0",
-        "readline-sync": "^1.4.9"
+        "algosdk": "^1.4.0",
+        "commander": "^4.0.1",
+        "dotenv": "^8.2.0",
+        "readline-sync": "^1.4.10"
     },
     "devDependencies": {
-        "eslint": "^5.16.0",
-        "eslint-config-airbnb": "^17.1.0",
-        "eslint-plugin-import": "^2.16.0",
-        "eslint-plugin-jsx-a11y": "^6.2.1",
-        "eslint-plugin-react": "^7.12.4",
-        "prettier": "^1.16.4"
+        "eslint": "^6.0.1",
+        "eslint-config-airbnb": "^18.0.1",
+        "eslint-plugin-import": "^2.18.2",
+        "eslint-plugin-jsx-a11y": "^6.2.3",
+        "eslint-plugin-react": "^7.16.0",
+        "prettier": "^1.19.1"
     },
     "engines": {
         "node": ">= 8.0.0"

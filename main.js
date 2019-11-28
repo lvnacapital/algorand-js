@@ -7,7 +7,7 @@ const search = require('./search');
 const clerk = require('./clerk');
 
 program
-    .version('0.0.2', '-v, --version')
+    .version('0.0.4', '-v, --version')
     .usage('[options]')
     .option('-b, --show-block', 'Display block information')
     .option('-c, --create-wallet', 'Create new wallet')
@@ -70,6 +70,6 @@ const kmdClient = new algosdk.Kmd(kmdToken, server, kmdPort);
         console.log('');
     }
 })().catch((e) => {
-    console.log(e.error.text);
+    console.log(e);
     process.exit(1);
 });
