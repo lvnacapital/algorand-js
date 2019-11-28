@@ -45,54 +45,53 @@ function sendTransaction(generateAccount, algodClient, kmdClient) {
         } else {
             const wallets = await kmdClient.listWallets();
             const walletsLength = wallets.wallets.length;
-            if (typeof walletsLength !== 'undefined' && walletsLength > 0) {
-                console.log('\nGot wallets list:'); // + JSON.stringify(wallets));
-                for (let i = 0; i < walletsLength; i++) {
-                    console.log(`[${i + 1}] ${wallets.wallets[i].name}`);
-                }
-
-                if (!walletName) {
-                    const walletIndex = readlineSync.keyIn(
-                        `Pick the wallet to use [1${walletsLength > 1 ? `-${walletsLength}` : ''}]: `,
-                        // eslint-disable-next-line comma-dangle
-                        { limit: `$<1-${walletsLength}>` }
-                    );
-                    walletName = wallets.wallets[walletIndex - 1].name;
-                    walletId = wallets.wallets[walletIndex - 1].id;
-                }
-
-                if (!walletPassword) {
-                    walletPassword = readlineSync.question(`\nType the '${walletName}' wallet's password: `, {
-                        hideEchoBack: true,
-                        mask: '',
-                    });
-                }
-
-                walletHandle = (await kmdClient.initWalletHandle(walletId, walletPassword)).wallet_handle_token;
-            } else {
+            if (typeof walletsLength === 'undefined' || walletsLength <= 0) {
                 console.log("No wallets could be found in `kmd'.");
                 process.exit(1);
             }
 
+            console.log('\nGot wallets list:'); // + JSON.stringify(wallets));
+            for (let i = 0; i < walletsLength; i++) {
+                console.log(`[${i + 1}] ${wallets.wallets[i].name}`);
+            }
+
+            if (!walletName) {
+                const walletIndex = readlineSync.keyIn(
+                    `Pick the wallet to use [1${walletsLength > 1 ? `-${walletsLength}` : ''}]: `,
+                    // eslint-disable-next-line comma-dangle
+                    { limit: `$<1-${walletsLength}>` }
+                );
+                walletName = wallets.wallets[walletIndex - 1].name;
+                walletId = wallets.wallets[walletIndex - 1].id;
+            }
+
+            if (!walletPassword) {
+                walletPassword = readlineSync.question(`\nType the '${walletName}' wallet's password: `, {
+                    hideEchoBack: true,
+                    mask: '',
+                });
+            }
+
+            walletHandle = (await kmdClient.initWalletHandle(walletId, walletPassword)).wallet_handle_token;
+
             const keys = await kmdClient.listKeys(walletHandle);
             const keysLength = keys.addresses.length;
-            if (typeof keysLength !== 'undefined' && keysLength > 0) {
-                console.log('\nGot keys list:'); // + keys);
-                for (let i = 0; i < keysLength; i++) {
-                    console.log(`[${i + 1}] ${keys.addresses[i]}`);
-                }
-
-                const keyIndex = readlineSync.keyIn(
-                    `Pick the account address to send from [1${keysLength > 1 ? `-${keysLength}` : ''}]: `,
-                    { limit: `$<1-${keysLength}>` },
-                );
-                from.addr = keys.addresses[keyIndex - 1];
-                from.sk = (await kmdClient.exportKey(walletHandle, walletPassword, from.addr)).private_key;
-                // console.log('sk', from.sk);
-            } else {
+            if (typeof keysLength === 'undefined' || keysLength <= 0) {
                 console.log(`No keys could be found in \`kmd' for '${walletName}'.`);
                 process.exit(1);
             }
+            console.log('\nGot keys list:'); // + keys);
+            for (let i = 0; i < keysLength; i++) {
+                console.log(`[${i + 1}] ${keys.addresses[i]}`);
+            }
+
+            const keyIndex = readlineSync.keyIn(
+                `Pick the account address to send from [1${keysLength > 1 ? `-${keysLength}` : ''}]: `,
+                { limit: `$<1-${keysLength}>` },
+            );
+            from.addr = keys.addresses[keyIndex - 1];
+            from.sk = (await kmdClient.exportKey(walletHandle, walletPassword, from.addr)).private_key;
+            // console.log('sk', from.sk);
         }
 
         if (!to) {
